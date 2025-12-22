@@ -1,89 +1,89 @@
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_dal/core/constants/app_constants.dart';
 
 class AuthRepository {
   final SharedPreferences _prefs;
+  final Dio _dio;
 
-  AuthRepository(this._prefs);
+  AuthRepository(this._prefs)
+      : _dio = Dio(
+          BaseOptions(
+            baseUrl: AppConstants.baseUrl,
+            connectTimeout: const Duration(seconds: 20),
+            receiveTimeout: const Duration(seconds: 20),
+            sendTimeout: const Duration(seconds: 20),
+            headers: {'Content-Type': 'application/json'},
+          ),
+        )..interceptors.add(
+            LogInterceptor(
+              requestBody: true,
+              responseBody: true,
+              logPrint: (obj) => debugPrint(obj.toString()),
+            ),
+          );
 
-  // Login simulado - Cambia esto cuando tengas tu API
   Future<Map<String, dynamic>> login(String email, String password) async {
-    // Simulación de delay de red
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final response = await _dio.post(
+        AppConstants.loginEndpoint,
+        data: {
+          'email': email,
+          'password': password,
+        },
+      );
 
-    // Credenciales de prueba (eliminar cuando tengas API real)
-    if (email == 'admin@test.com' && password == '123456') {
-      final userData = {
-        'id': '1',
-        'email': email,
-        'name': 'Usuario Admin',
-        'token': 'fake_token_12345', // Token simulado
-      };
+      if (response.statusCode == 200 && response.data is Map) {
+        final userData = Map<String, dynamic>.from(response.data as Map);
 
-      // Guardar sesión
-      await _prefs.setBool(AppConstants.isLoggedInKey, true);
-      await _prefs.setString(AppConstants.userEmailKey, email);
-      await _prefs.setString(AppConstants.userTokenKey, userData['token']!);
+        await _prefs.setBool(AppConstants.isLoggedInKey, true);
+        await _prefs.setString(AppConstants.userEmailKey, userData['email']?.toString() ?? '');
+        await _prefs.setString(AppConstants.userDataKey, jsonEncode(userData));
 
-      return userData;
-    } else {
-      throw Exception('Credenciales inválidas');
+        return userData;
+      }
+
+      throw Exception('Error en login (código: ${response.statusCode})');
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      final data = e.response?.data;
+      debugPrint('Auth login error status=$status data=$data message=${e.message}');
+
+      final msg = (data is Map && data['message'] != null)
+          ? data['message'].toString()
+          : (status != null ? 'No se pudo iniciar sesión (código: $status)' : 'No se pudo iniciar sesión');
+      throw Exception(msg);
+    } catch (e) {
+      debugPrint('Auth login unexpected error: $e');
+      throw Exception('Error de conexión');
     }
   }
 
-  // Verificar si hay sesión guardada
   Future<bool> isLoggedIn() async {
     return _prefs.getBool(AppConstants.isLoggedInKey) ?? false;
   }
 
-  // Obtener email guardado
   String? getSavedEmail() {
     return _prefs.getString(AppConstants.userEmailKey);
   }
 
-  // Obtener token guardado
-  String? getSavedToken() {
-    return _prefs.getString(AppConstants.userTokenKey);
+  Map<String, dynamic>? getSavedUser() {
+    final json = _prefs.getString(AppConstants.userDataKey);
+    if (json == null) return null;
+    try {
+      return Map<String, dynamic>.from(jsonDecode(json) as Map);
+    } catch (_) {
+      return null;
+    }
   }
 
-  // Logout
   Future<void> logout() async {
     await _prefs.remove(AppConstants.isLoggedInKey);
     await _prefs.remove(AppConstants.userEmailKey);
     await _prefs.remove(AppConstants.userTokenKey);
+    await _prefs.remove(AppConstants.userDataKey);
   }
-
-  /* 
-   * IMPLEMENTACIÓN FUTURA CON API REST:
-   * 
-   * import 'package:dio/dio.dart';
-   * 
-   * Future<Map<String, dynamic>> loginWithAPI(String email, String password) async {
-   *   try {
-   *     final dio = Dio();
-   *     final response = await dio.post(
-   *       '${AppConstants.baseUrl}${AppConstants.loginEndpoint}',
-   *       data: {
-   *         'email': email,
-   *         'password': password,
-   *       },
-   *     );
-   * 
-   *     if (response.statusCode == 200) {
-   *       final userData = response.data;
-   *       
-   *       // Guardar sesión
-   *       await _prefs.setBool(AppConstants.isLoggedInKey, true);
-   *       await _prefs.setString(AppConstants.userEmailKey, userData['email']);
-   *       await _prefs.setString(AppConstants.userTokenKey, userData['token']);
-   *       
-   *       return userData;
-   *     } else {
-   *       throw Exception('Error en el login');
-   *     }
-   *   } catch (e) {
-   *     throw Exception('Error de conexión: $e');
-   *   }
-   * }
-   */
 }

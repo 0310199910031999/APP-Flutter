@@ -25,22 +25,24 @@ class AuthProvider extends ChangeNotifier {
       final isLoggedIn = await _repository.isLoggedIn();
       
       if (isLoggedIn) {
-        final email = _repository.getSavedEmail();
-        _state = AuthState(
-          isAuthenticated: true,
-          user: User(
-            id: '1',
-            email: email ?? '',
-            name: 'Usuario',
-          ),
-        );
+        final savedUser = _repository.getSavedUser();
+        if (savedUser != null) {
+          _state = AuthState(
+            isAuthenticated: true,
+            user: User.fromMap(savedUser),
+            isLoading: false,
+          );
+        } else {
+          _state = AuthState(isAuthenticated: false, isLoading: false);
+        }
       } else {
-        _state = AuthState(isAuthenticated: false);
+        _state = AuthState(isAuthenticated: false, isLoading: false);
       }
       notifyListeners();
     } catch (e) {
       _state = AuthState(
         isAuthenticated: false,
+        isLoading: false,
         error: e.toString(),
       );
       notifyListeners();
@@ -54,14 +56,10 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final userData = await _repository.login(email, password);
-      
+
       _state = AuthState(
         isAuthenticated: true,
-        user: User(
-          id: userData['id'],
-          email: userData['email'],
-          name: userData['name'],
-        ),
+        user: User.fromMap(userData),
         isLoading: false,
       );
       notifyListeners();
