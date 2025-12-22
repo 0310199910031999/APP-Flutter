@@ -12,7 +12,7 @@ class AppTheme {
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     colorScheme: ColorScheme.fromSeed(
-      seedColor: primaryColor,
+      seedColor: surfaceColor,
       primary: primaryColor,
       secondary: secondaryColor,
       brightness: Brightness.light,
@@ -27,6 +27,8 @@ class AppTheme {
       foregroundColor: Colors.white,
     ),
     cardTheme: CardThemeData(
+      color: Colors.white,
+      surfaceTintColor: Colors.transparent, // evita el tinte cálido en Material 3
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -65,6 +67,7 @@ class AppTheme {
       ),
     ),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor: Colors.white,
       selectedItemColor: secondaryColor,
       unselectedItemColor: Colors.grey,
       type: BottomNavigationBarType.fixed,
