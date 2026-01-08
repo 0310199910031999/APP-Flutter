@@ -6,22 +6,29 @@ plugins {
 }
 
 android {
+    signingConfigs {
+        create("release") {
+            storeFile = file("C:\\Users\\ddgti\\Documents\\DAL APP\\claves")
+            storePassword = "daldealer_32"
+            keyPassword = "daldealer_32"
+            keyAlias = "key0"
+        }
+    }
     namespace = "com.dal.app"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    compileSdk = 36
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
         // Application ID único para Android
-        applicationId = "com.dal.app"
+        applicationId = "com.cs.daldealergroup"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // Android 6.0+ (requerido por Flutter 3.38.5)
@@ -29,6 +36,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        signingConfig = signingConfigs.getByName("release")
     }
 
     buildTypes {
@@ -38,6 +46,7 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+    buildToolsVersion = "35.0.0"
 }
 
 flutter {

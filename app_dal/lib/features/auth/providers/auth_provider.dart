@@ -16,7 +16,16 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _initialize() async {
     final prefs = await SharedPreferences.getInstance();
     _repository = AuthRepository(prefs);
-    await _checkAuthStatus();
+    // Cap the startup loader so the splash doesn't linger too long.
+    await Future.any([
+      _checkAuthStatus(),
+      Future.delayed(const Duration(milliseconds: 700)),
+    ]);
+
+    if (_state.isLoading) {
+      _state = _state.copyWith(isLoading: false);
+      notifyListeners();
+    }
   }
 
   // Verificar estado de autenticación al iniciar

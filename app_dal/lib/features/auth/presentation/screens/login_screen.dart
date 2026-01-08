@@ -54,109 +54,88 @@ class _LoginScreenState extends State<LoginScreen> {
           body: LoadingOverlay(
             isLoading: authProvider.state.isLoading,
             child: SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.all(24.0),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 520),
-                          child: Form(
-                            key: _formKey,
-                            child: Transform.translate(
-                              offset: const Offset(0, -24),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  _FadeSlideIn(
-                                    delay: const Duration(milliseconds: 60),
-                                    beginOffset: const Offset(0, -0.08),
-                                    child: const _Header(),
-                                  ),
-                                  const SizedBox(height: 32),
-                                  _FadeSlideIn(
-                                    delay: const Duration(milliseconds: 140),
-                                    beginOffset: const Offset(0, 0.08),
-                                    child: Column(
-                                      children: [
-                                        CustomTextField(
-                                          controller: _emailController,
-                                          label: 'Correo electrónico',
-                                          hint: 'ejemplo@correo.com',
-                                          keyboardType: TextInputType.emailAddress,
-                                          prefixIcon: const Icon(Icons.email_outlined),
-                                          validator: (value) {
-                                            if (value == null || value.isEmpty) {
-                                              return 'Por favor ingresa tu correo';
-                                            }
-                                            final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-                                            if (!emailRegex.hasMatch(value)) {
-                                              return 'Por favor ingresa un correo válido';
-                                            }
-                                            return null;
-                                          },
-                                        ),
-                                        const SizedBox(height: 16),
-                                        CustomTextField(
-                                          controller: _passwordController,
-                                          label: 'Contraseña',
-                                          hint: '••••••••',
-                                          obscureText: _obscurePassword,
-                                          prefixIcon: const Icon(Icons.lock_outlined),
-                                          suffixIcon: IconButton(
-                                            icon: Icon(
-                                              _obscurePassword
-                                                  ? Icons.visibility_outlined
-                                                  : Icons.visibility_off_outlined,
-                                            ),
-                                            onPressed: () {
-                                              setState(() {
-                                                _obscurePassword = !_obscurePassword;
-                                              });
-                                            },
-                                          ),
-                                          validator: (value) {
-                                            if (value == null || value.isEmpty) {
-                                              return 'Por favor ingresa tu contraseña';
-                                            }
-                                            return null;
-                                          },
-                                        ),
-                                        const SizedBox(height: 24),
-                                        SizedBox(
-                                          width: double.infinity,
-                                          child: ElevatedButton(
-                                            onPressed: _handleLogin,
-                                            style: ElevatedButton.styleFrom(
-                                              padding: const EdgeInsets.symmetric(vertical: 14),
-                                              backgroundColor: Theme.of(context).colorScheme.primary,
-                                              foregroundColor: Colors.white,
-                                            ),
-                                            child: const Text(
-                                              'Iniciar Sesión',
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 24),
-                                ],
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 32),
+                          const _Header(),
+                          const SizedBox(height: 32),
+                          CustomTextField(
+                            controller: _emailController,
+                            label: 'Correo electrónico',
+                            hint: 'ejemplo@correo.com',
+                            keyboardType: TextInputType.emailAddress,
+                            prefixIcon: const Icon(Icons.email_outlined),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor ingresa tu correo';
+                              }
+                              final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+                              if (!emailRegex.hasMatch(value)) {
+                                return 'Por favor ingresa un correo válido';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          CustomTextField(
+                            controller: _passwordController,
+                            label: 'Contraseña',
+                            hint: '••••••••',
+                            obscureText: _obscurePassword,
+                            prefixIcon: const Icon(Icons.lock_outlined),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor ingresa tu contraseña';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _handleLogin,
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text(
+                                'Iniciar Sesión',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        ),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
             ),
           ),
@@ -210,65 +189,6 @@ class _Header extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _FadeSlideIn extends StatefulWidget {
-  final Widget child;
-  final Duration delay;
-  final Offset beginOffset;
-
-  const _FadeSlideIn({
-    required this.child,
-    required this.delay,
-    required this.beginOffset,
-  });
-
-  @override
-  State<_FadeSlideIn> createState() => _FadeSlideInState();
-}
-
-class _FadeSlideInState extends State<_FadeSlideIn>
-    with TickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _opacity;
-  late Animation<Offset> _offset;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-
-    _opacity = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-
-    _offset = Tween<Offset>(begin: widget.beginOffset, end: Offset.zero).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-
-    Future.delayed(widget.delay, () {
-      if (mounted) {
-        _controller.forward();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _opacity,
-      child: SlideTransition(position: _offset, child: widget.child),
     );
   }
 }

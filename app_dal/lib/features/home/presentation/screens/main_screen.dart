@@ -22,25 +22,25 @@ class _MainScreenState extends State<MainScreen> {
     ConfiguracionTab(),
   ];
 
-  final List<NavigationDestination> _destinations = const [
-    NavigationDestination(
+  static const List<BottomNavigationBarItem> _items = [
+    BottomNavigationBarItem(
       icon: Icon(Icons.home_outlined),
-      selectedIcon: Icon(Icons.home),
+      activeIcon: Icon(Icons.home),
       label: 'Inicio',
     ),
-    NavigationDestination(
+    BottomNavigationBarItem(
       icon: Icon(Icons.construction_outlined),
-      selectedIcon: Icon(Icons.construction),
+      activeIcon: Icon(Icons.construction),
       label: 'Equipos',
     ),
-    NavigationDestination(
+    BottomNavigationBarItem(
       icon: Icon(Icons.assignment_outlined),
-      selectedIcon: Icon(Icons.assignment),
+      activeIcon: Icon(Icons.assignment),
       label: 'Renta',
     ),
-    NavigationDestination(
+    BottomNavigationBarItem(
       icon: Icon(Icons.settings_outlined),
-      selectedIcon: Icon(Icons.settings),
+      activeIcon: Icon(Icons.settings),
       label: 'Configuración',
     ),
   ];
@@ -86,16 +86,16 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
           _pageController.animateToPage(
             index,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
           );
         },
-        destinations: _destinations,
+        items: _items,
       ),
     );
   }

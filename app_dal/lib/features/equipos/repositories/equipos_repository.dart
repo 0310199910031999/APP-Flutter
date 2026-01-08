@@ -53,6 +53,37 @@ class EquiposRepository {
     }
   }
 
+  Future<List<Equipo>> fetchByProperty(String property) async {
+    try {
+      final encoded = Uri.encodeComponent(property);
+      final response = await _dio.get('${AppConstants.equipmentByPropertyEndpoint}/$encoded');
+
+      if (response.statusCode == 200 && response.data is List) {
+        final list = response.data as List;
+        debugPrint('Equipos by property response length=${list.length}');
+        return list
+            .whereType<Map<String, dynamic>>()
+            .map(Equipo.fromMap)
+            .toList();
+      }
+
+      throw Exception('Error al obtener equipos (código: ${response.statusCode})');
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      final data = e.response?.data;
+      debugPrint('Equipos by property error status=$status data=$data message=${e.message}');
+      final msg = (data is Map && data['message'] != null)
+          ? data['message'].toString()
+          : (status != null
+              ? 'No se pudieron obtener los equipos (código: $status)'
+              : 'No se pudieron obtener los equipos');
+      throw Exception(msg);
+    } catch (e) {
+      debugPrint('Equipos by property unexpected error: $e');
+      throw Exception('Error de conexión');
+    }
+  }
+
   Future<Equipo> fetchById(int equipmentId) async {
     try {
       final response = await _dio.get('${AppConstants.equipmentDetailEndpoint}/$equipmentId');

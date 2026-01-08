@@ -5,6 +5,7 @@ class Equipo {
   const Equipo({
     required this.id,
     required this.clientId,
+    this.clientName = '',
     required this.type,
     required this.brand,
     required this.model,
@@ -17,10 +18,12 @@ class Equipo {
     required this.addition,
     required this.motor,
     required this.property,
+    this.status = '',
   });
 
   final int id;
   final int clientId;
+  final String clientName;
   final EquipoType type;
   final EquipoBrand brand;
   final String model;
@@ -33,6 +36,7 @@ class Equipo {
   final String addition;
   final String motor;
   final String property;
+  final String status;
 
   String? get brandImageUrl {
     if (brand.imgPath == null || brand.imgPath!.isEmpty) {
@@ -48,6 +52,7 @@ class Equipo {
     return Equipo(
       id: _asInt(map['id']),
       clientId: _asInt(map['client_id']),
+      clientName: map['client_name']?.toString() ?? '',
       type: EquipoType.fromMap(map['type'] as Map<String, dynamic>? ?? const {}),
       brand: EquipoBrand.fromMap(map['brand'] as Map<String, dynamic>? ?? const {}),
       model: map['model']?.toString() ?? '',
@@ -60,6 +65,7 @@ class Equipo {
       addition: map['addition']?.toString() ?? '',
       motor: map['motor']?.toString() ?? '',
       property: map['property']?.toString() ?? '',
+      status: map['status']?.toString() ?? '',
     );
   }
 

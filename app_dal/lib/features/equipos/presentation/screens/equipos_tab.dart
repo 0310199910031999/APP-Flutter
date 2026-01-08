@@ -2,7 +2,7 @@ import 'package:app_dal/features/auth/providers/auth_provider.dart';
 import 'package:app_dal/features/equipos/models/equipo.dart';
 import 'package:app_dal/features/equipos/providers/equipos_provider.dart';
 import 'package:app_dal/features/equipos/repositories/equipos_repository.dart';
-import 'package:app_dal/features/equipos/presentation/screens/equipo_detail_screen.dart';
+import 'package:app_dal/features/equipos/presentation/detail/equipo_detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -101,9 +101,7 @@ class _EquiposTabState extends State<EquiposTab> {
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final equipo = equipos[index];
-                  return _FadeSlideIn(
-                    delay: Duration(milliseconds: 60 * index),
-                    beginOffset: const Offset(-0.12, 0),
+                  return RepaintBoundary(
                     child: _EquipoCard(
                       equipo: equipo,
                       onTap: () {
@@ -157,12 +155,13 @@ class _EquipoCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                   child: SizedBox(
                     width: 96,
-                    height: 96,
+                    height: 90,
                     child: imageUrl == null
                         ? placeholder
                         : Image.network(
                             imageUrl,
-                            fit: BoxFit.cover,
+                            fit: BoxFit.contain,
+                            cacheWidth: 192, // 96 * 2 for high DPI screens
                             errorBuilder: (_, error, ___) {
                               debugPrint('Error cargando imagen $imageUrl -> $error');
                               return placeholder;
@@ -227,61 +226,6 @@ class _InfoRow extends StatelessWidget {
             TextSpan(text: value),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _FadeSlideIn extends StatefulWidget {
-  const _FadeSlideIn({
-    required this.child,
-    this.delay = Duration.zero,
-    this.beginOffset = const Offset(-0.1, 0),
-  });
-
-  final Widget child;
-  final Duration delay;
-  final Offset beginOffset;
-
-  @override
-  State<_FadeSlideIn> createState() => _FadeSlideInState();
-}
-
-class _FadeSlideInState extends State<_FadeSlideIn>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _opacity;
-  late final Animation<Offset> _offset;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 420),
-      vsync: this,
-    );
-    final curve = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
-    _opacity = Tween<double>(begin: 0, end: 1).animate(curve);
-    _offset = Tween<Offset>(begin: widget.beginOffset, end: Offset.zero).animate(curve);
-
-    Future.delayed(widget.delay, () {
-      if (mounted) _controller.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _opacity,
-      child: SlideTransition(
-        position: _offset,
-        child: widget.child,
       ),
     );
   }
