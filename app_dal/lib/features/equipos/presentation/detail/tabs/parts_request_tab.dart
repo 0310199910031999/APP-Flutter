@@ -380,8 +380,13 @@ class _PartsRequestTabState extends State<PartsRequestTab>
                         );
                       }
 
-                        final records =
-                          recordSnapshot.data ?? const <ServiceRequestRecord>[];
+                        final allRecords = recordSnapshot.data ?? const <ServiceRequestRecord>[];
+                        final records = allRecords
+                            .where((r) {
+                              final type = r.requestType.trim().toLowerCase();
+                              return type != 'renta' && type != 'venta';
+                            })
+                            .toList(growable: false);
 
                       if (records.isEmpty) {
                         return const SliverToBoxAdapter(

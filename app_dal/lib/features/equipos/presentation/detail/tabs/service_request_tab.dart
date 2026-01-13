@@ -1,4 +1,5 @@
 import 'package:app_dal/features/auth/providers/auth_provider.dart';
+import 'package:app_dal/features/auth/models/auth_state.dart' show User;
 import 'package:app_dal/features/equipos/models/equipo.dart';
 import 'package:app_dal/features/equipos/models/service_option.dart';
 import 'package:app_dal/features/equipos/models/service_request_record.dart';
@@ -7,6 +8,17 @@ import 'package:app_dal/features/equipos/presentation/detail/widgets/error_view.
 import 'package:app_dal/features/equipos/repositories/service_requests_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+// Wrapper para mantener estado de expansión de tipos de servicio
+class ServiceTypeItem {
+  ServiceTypeItem({
+    required this.type,
+    required this.services,
+  });
+
+  final String type;
+  final List<ServiceOption> services;
+}
 
 class ServiceRequestTab extends StatefulWidget {
   const ServiceRequestTab({
@@ -23,13 +35,15 @@ class ServiceRequestTab extends StatefulWidget {
 }
 
 class _ServiceRequestTabState extends State<ServiceRequestTab>
-    with AutomaticKeepAliveClientMixin {
+  with AutomaticKeepAliveClientMixin {
   final _repository = ServiceRequestsRepository();
   late Future<List<ServiceOption>> _servicesFuture;
   late Future<List<ServiceRequestRecord>> _recordsFuture;
   String? _selectedType;
   int? _submittingServiceId;
   String? _submittingRequestType;
+  List<ServiceTypeItem> _cachedItems = const [];
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -37,6 +51,13 @@ class _ServiceRequestTabState extends State<ServiceRequestTab>
     _servicesFuture = _repository.fetchServices();
     _recordsFuture =
         _repository.fetchServiceRequestsByEquipmentId(widget.equipo.id);
+    _hydrateCachedItems();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -46,6 +67,7 @@ class _ServiceRequestTabState extends State<ServiceRequestTab>
       _servicesFuture = _repository.fetchServices();
       _recordsFuture =
           _repository.fetchServiceRequestsByEquipmentId(widget.equipo.id);
+      _hydrateCachedItems();
     }
   }
 
@@ -56,17 +78,29 @@ class _ServiceRequestTabState extends State<ServiceRequestTab>
       _recordsFuture =
           _repository.fetchServiceRequestsByEquipmentId(widget.equipo.id);
     });
-    await Future.wait([_servicesFuture, _recordsFuture]);
+    try {
+      final services = await _servicesFuture;
+      await _recordsFuture;
+      if (!mounted) return;
+      setState(() {
+        _cachedItems = _buildServiceTypeItems(services);
+      });
+    } catch (_) {
+      // El FutureBuilder mostrará el error; evitamos jank.
+    }
   }
 
-  List<String> _typesFrom(List<ServiceOption> services) {
-    final set = <String>{};
-    for (final s in services) {
-      final t = s.type.trim();
-      if (t.isNotEmpty) set.add(t);
+  List<ServiceTypeItem> _buildServiceTypeItems(List<ServiceOption> services) {
+    final Map<String, List<ServiceOption>> groupedServices = {};
+    for (final service in services) {
+      final type = service.type.trim();
+      if (type.isNotEmpty) {
+        (groupedServices[type] ??= []).add(service);
+      }
     }
-    final list = set.toList();
-    list.sort((a, b) {
+
+    final sortedTypes = groupedServices.keys.toList();
+    sortedTypes.sort((a, b) {
       const priority = ['Preventivo', 'Correctivo', 'Otros Servicios'];
       final ia = priority.indexWhere((p) => p.toLowerCase() == a.toLowerCase());
       final ib = priority.indexWhere((p) => p.toLowerCase() == b.toLowerCase());
@@ -75,50 +109,60 @@ class _ServiceRequestTabState extends State<ServiceRequestTab>
       if (ib == -1) return -1;
       return ia.compareTo(ib);
     });
-    return list;
+
+    return sortedTypes
+        .map((type) => ServiceTypeItem(
+              type: type,
+              services: groupedServices[type]!,
+            ))
+        .toList(growable: false);
   }
 
-  String _resolveSelectedType(List<String> types) {
-    if (types.isEmpty) return '';
+  Future<void> _hydrateCachedItems() async {
+    try {
+      final services = await _servicesFuture;
+      if (!mounted) return;
+      setState(() {
+        _cachedItems = _buildServiceTypeItems(services);
+        _selectedType = _cachedItems.isNotEmpty ? _cachedItems.first.type : null;
+      });
+    } catch (_) {
+      // El FutureBuilder manejará el error.
+    }
+  }
+
+  String _resolveServiceType(List<ServiceTypeItem> items) {
+    if (items.isEmpty) return '';
     final current = _selectedType;
-    if (current != null &&
-        types.any((t) => t.toLowerCase() == current.toLowerCase())) {
-      return types.firstWhere(
-        (t) => t.toLowerCase() == current.toLowerCase(),
-        orElse: () => types.first,
-      );
+    if (current != null && items.any((i) => i.type == current)) {
+      return current;
     }
-    const defaultOrder = ['Preventivo', 'Correctivo', 'Otros Servicios'];
-    for (final desired in defaultOrder) {
-      final match = types.firstWhere(
-        (t) => t.toLowerCase() == desired.toLowerCase(),
-        orElse: () => '',
-      );
-      if (match.isNotEmpty) {
-        _selectedType = match;
-        return match;
-      }
-    }
-    _selectedType = types.first;
-    return types.first;
+    _selectedType = items.first.type;
+    return _selectedType!;
   }
 
-  List<ServiceOption> _filterByType(
+  List<ServiceOption> _filterServices(
     List<ServiceOption> services,
-    String type,
+    String search,
   ) {
-    final normalized = type.toLowerCase();
+    if (search.trim().isEmpty) return services;
+    final query = search.toLowerCase();
     return services
-        .where((s) => s.type.toLowerCase() == normalized)
+        .where(
+          (s) => s.name.toLowerCase().contains(query) ||
+              (s.description ?? '').toLowerCase().contains(query) ||
+              s.code.toLowerCase().contains(query),
+        )
         .toList(growable: false);
   }
 
   Future<void> _handleRequest(
     ServiceOption service,
-    String requestType, {
+    String requestType,
+    User? currentUser, {
     VoidCallback? onCompleted,
   }) async {
-    final user = context.read<AuthProvider>().state.user;
+    final user = currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudo obtener el usuario actual')),
@@ -178,10 +222,16 @@ class _ServiceRequestTabState extends State<ServiceRequestTab>
 
   Future<void> _openRequestSheet(List<ServiceOption> services) async {
     if (services.isEmpty) return;
-    final types = _typesFrom(services);
-    if (types.isEmpty) return;
-    String localSelected = _resolveSelectedType(types);
+
+    if (_cachedItems.isEmpty) return;
+
     final rootContext = context;
+    final currentUser = context.read<AuthProvider>().state.user;
+    String localType = _resolveServiceType(_cachedItems);
+    String searchTerm = '';
+    _searchController.clear();
+    int pageIndex = 0;
+    final pageController = PageController(initialPage: 0);
 
     await showModalBottomSheet<void>(
       context: context,
@@ -191,7 +241,39 @@ class _ServiceRequestTabState extends State<ServiceRequestTab>
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
-            final filtered = _filterByType(services, localSelected);
+            final selectedItem = _cachedItems.firstWhere(
+              (i) => i.type == localType,
+              orElse: () => _cachedItems.first,
+            );
+            final filteredServices = _filterServices(selectedItem.services, searchTerm);
+
+            void goToTypes() {
+              setModalState(() {
+                pageIndex = 0;
+                searchTerm = '';
+                _searchController.clear();
+              });
+              pageController.animateToPage(
+                0,
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOut,
+              );
+            }
+
+            void goToServices(String type) {
+              setModalState(() {
+                localType = type;
+                _selectedType = type;
+                searchTerm = '';
+                _searchController.clear();
+                pageIndex = 1;
+              });
+              pageController.animateToPage(
+                1,
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOut,
+              );
+            }
 
             return DraggableScrollableSheet(
               expand: false,
@@ -202,120 +284,56 @@ class _ServiceRequestTabState extends State<ServiceRequestTab>
                 return Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        height: 4,
-                        width: 48,
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
+                      _SheetTopBar(
+                        title: pageIndex == 0
+                            ? 'Elige el tipo de servicio'
+                            : selectedItem.type,
+                        subtitle: pageIndex == 0
+                            ? 'Paso 1/2: selecciona el tipo'
+                            : 'Paso 2/2: elige el servicio y cotiza o solicita',
+                        showBack: pageIndex == 1,
+                        onBack: pageIndex == 1 ? goToTypes : null,
                       ),
-                      Text(
-                        'Nueva solicitud',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(fontWeight: FontWeight.w900),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '1. Elige el tipo de servicio\n2. Selecciona entre solicitar o cotizar',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                      ),
-                      const SizedBox(height: 16),
-                      _TypeSelector(
-                        types: types,
-                        selected: localSelected,
-                        onSelected: (value) {
-                          setModalState(() {
-                            localSelected = value;
-                          });
-                          setState(() {
-                            _selectedType = value;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       Expanded(
-                        child: filtered.isEmpty
-                            ? ListView(
-                                controller: scrollController,
-                                children: const [
-                                  EmptyStateCard(
-                                    icon: Icons.handyman_outlined,
-                                    title: 'Sin servicios en esta categoría',
-                                    message:
-                                        'Selecciona otra categoría o vuelve a intentar más tarde.',
-                                  ),
-                                ],
-                              )
-                            : ListView.separated(
-                                controller: scrollController,
-                                itemCount: filtered.length,
-                                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                                itemBuilder: (context, index) {
-                                  final service = filtered[index];
-                                  return _ServiceCard(
-                                    service: service,
-                                    isProcessing:
-                                        _submittingServiceId == service.id,
-                                    processingLabel: _submittingRequestType,
-                                    onQuote: () => _handleRequest(
-                                      service,
-                                      'Cotizar',
-                                      onCompleted: () {
-                                        Navigator.of(rootContext).maybePop();
-                                        showDialog<void>(
-                                          context: rootContext,
-                                          builder: (ctx) {
-                                            return AlertDialog(
-                                              title: const Text('Solicitud enviada'),
-                                              content: Text(
-                                                'Cotización enviada para ${service.name}.',
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () => Navigator.of(ctx).pop(),
-                                                  child: const Text('Cerrar'),
-                                                ),
-                                              ],
-                                            );
-                                          },
-                                        );
-                                      },
-                                    ),
-                                    onRequest: () => _handleRequest(
-                                      service,
-                                      'Solicitar',
-                                      onCompleted: () {
-                                        Navigator.of(rootContext).maybePop();
-                                        showDialog<void>(
-                                          context: rootContext,
-                                          builder: (ctx) {
-                                            return AlertDialog(
-                                              title: const Text('Solicitud enviada'),
-                                              content: Text(
-                                                'Solicitud enviada para ${service.name}.',
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () => Navigator.of(ctx).pop(),
-                                                  child: const Text('Cerrar'),
-                                                ),
-                                              ],
-                                            );
-                                          },
-                                        );
-                                      },
-                                    ),
-                                  );
+                        child: PageView(
+                          controller: pageController,
+                          physics: const NeverScrollableScrollPhysics(),
+                          children: [
+                            _ServiceTypePage(
+                              types: _cachedItems,
+                              selectedType: localType,
+                              scrollController: pageIndex == 0 ? scrollController : null,
+                              onSelect: goToServices,
+                            ),
+                            _ServicesPage(
+                              typeName: selectedItem.type,
+                              services: filteredServices,
+                              isProcessingId: _submittingServiceId,
+                              processingLabel: _submittingRequestType,
+                              scrollController: pageIndex == 1 ? scrollController : null,
+                              searchField: _SearchField(
+                                controller: _searchController,
+                                onChanged: (value) {
+                                  setModalState(() {
+                                    searchTerm = value;
+                                  });
                                 },
                               ),
+                              onQuote: (service) => _handleRequest(
+                                service,
+                                'Cotizar',
+                                currentUser,
+                              ),
+                              onRequest: (service) => _handleRequest(
+                                service,
+                                'Solicitar',
+                                currentUser,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -396,8 +414,13 @@ class _ServiceRequestTabState extends State<ServiceRequestTab>
                     );
                   }
 
-                      final records =
-                        recordSnapshot.data ?? const <ServiceRequestRecord>[];
+                      final allRecords = recordSnapshot.data ?? const <ServiceRequestRecord>[];
+                      final records = allRecords
+                          .where((r) {
+                            final type = r.requestType.trim().toLowerCase();
+                            return type != 'renta' && type != 'venta';
+                          })
+                          .toList(growable: false);
 
                   if (records.isEmpty) {
                     return const SliverToBoxAdapter(
@@ -440,6 +463,222 @@ class _ServiceRequestTabState extends State<ServiceRequestTab>
 
   @override
   bool get wantKeepAlive => true;
+}
+
+class _SearchField extends StatelessWidget {
+  const _SearchField({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        labelText: 'Buscar servicio',
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: controller.text.isEmpty
+            ? null
+            : IconButton(
+                tooltip: 'Limpiar búsqueda',
+                onPressed: () {
+                  controller.clear();
+                  onChanged('');
+                },
+                icon: const Icon(Icons.close),
+              ),
+        filled: true,
+        fillColor: scheme.surfaceVariant.withValues(alpha: 0.5),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: scheme.outline.withValues(alpha: 0.4)),
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetTopBar extends StatelessWidget {
+  const _SheetTopBar({
+    required this.title,
+    required this.subtitle,
+    this.showBack = false,
+    this.onBack,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool showBack;
+  final VoidCallback? onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        if (showBack)
+          IconButton(
+            tooltip: 'Volver a categorías',
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          ),
+        if (!showBack)
+          Container(
+            width: 42,
+            alignment: Alignment.center,
+            child: Container(
+              height: 4,
+              width: 48,
+              decoration: BoxDecoration(
+                color: scheme.outlineVariant,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ServiceTypePage extends StatelessWidget {
+  const _ServiceTypePage({
+    required this.types,
+    required this.selectedType,
+    required this.onSelect,
+    this.scrollController,
+  });
+
+  final List<ServiceTypeItem> types;
+  final String selectedType;
+  final ValueChanged<String> onSelect;
+  final ScrollController? scrollController;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return ListView.separated(
+      controller: scrollController,
+      padding: EdgeInsets.zero,
+      itemCount: types.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final item = types[index];
+        final isSelected = item.type == selectedType;
+        return ListTile(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          tileColor: isSelected
+              ? scheme.primary.withValues(alpha: 0.12)
+              : scheme.surfaceVariant.withValues(alpha: 0.4),
+          title: Text(
+            item.type,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: isSelected ? scheme.primary : scheme.onSurface,
+                ),
+          ),
+          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+          onTap: () => onSelect(item.type),
+        );
+      },
+    );
+  }
+}
+
+class _ServicesPage extends StatelessWidget {
+  const _ServicesPage({
+    required this.typeName,
+    required this.services,
+    required this.onQuote,
+    required this.onRequest,
+    required this.searchField,
+    this.scrollController,
+    this.isProcessingId,
+    this.processingLabel,
+  });
+
+  final String typeName;
+  final List<ServiceOption> services;
+  final void Function(ServiceOption) onQuote;
+  final void Function(ServiceOption) onRequest;
+  final Widget searchField;
+  final ScrollController? scrollController;
+  final int? isProcessingId;
+  final String? processingLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Chip(
+              label: Text(typeName.isEmpty ? 'Servicios' : typeName),
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        searchField,
+        const SizedBox(height: 12),
+        Expanded(
+          child: services.isEmpty
+              ? ListView(
+                  controller: scrollController,
+                  children: const [
+                    EmptyStateCard(
+                      icon: Icons.handyman_outlined,
+                      title: 'Sin servicios en esta categoría',
+                      message: 'Prueba otro tipo o intenta más tarde.',
+                    ),
+                  ],
+                )
+              : ListView.separated(
+                  controller: scrollController,
+                  itemCount: services.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final service = services[index];
+                    return _ServiceCard(
+                      service: service,
+                      isProcessing: isProcessingId == service.id,
+                      processingLabel: processingLabel,
+                      onQuote: () => onQuote(service),
+                      onRequest: () => onRequest(service),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
 }
 
 class _HeroCard extends StatelessWidget {
@@ -641,7 +880,7 @@ class _RecordCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            if (description != null && description.isNotEmpty) ...[
+            if (description.isNotEmpty) ...[
               Text(
                 description,
                 maxLines: 2,
@@ -736,54 +975,6 @@ class _LabeledValue extends StatelessWidget {
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w800,
               ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TypeSelector extends StatelessWidget {
-  const _TypeSelector({
-    required this.types,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  final List<String> types;
-  final String selected;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    if (types.isEmpty) return const SizedBox.shrink();
-    final scheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Tipo de servicio',
-          style: Theme.of(context)
-              .textTheme
-              .titleSmall
-              ?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: types.map((t) {
-            final isSelected = t.toLowerCase() == selected.toLowerCase();
-            return ChoiceChip(
-              label: Text(t),
-              selected: isSelected,
-              onSelected: (_) => onSelected(t),
-              selectedColor: scheme.primary.withValues(alpha: 0.12),
-              labelStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: isSelected ? scheme.primary : scheme.onSurface,
-                    fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
-                  ),
-            );
-          }).toList(),
         ),
       ],
     );
@@ -921,3 +1112,4 @@ class _ServiceCard extends StatelessWidget {
     );
   }
 }
+

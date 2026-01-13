@@ -224,7 +224,7 @@ class _RentaTabState extends State<RentaTab>
         appUserId: user.id,
         serviceName: serviceName,
         requestType: requestType,
-        status: 'Abierta',
+        status: 'Abierto',
       );
       if (!mounted) return;
       _showMessage('Solicitud $requestType enviada para ${equipo.brand.name} ${equipo.model}.');
