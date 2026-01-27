@@ -1,14 +1,18 @@
+import 'package:app_dal/core/notifications/notification_service.dart';
+import 'package:app_dal/core/theme/theme_provider.dart';
+import 'package:app_dal/features/auth/providers/auth_provider.dart';
+import 'package:app_dal/features/configuracion/presentation/screens/aviso_privacidad_screen.dart';
+import 'package:app_dal/features/configuracion/presentation/screens/faqs_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:app_dal/features/auth/providers/auth_provider.dart';
 
 class ConfiguracionTab extends StatelessWidget {
   const ConfiguracionTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
+    return Consumer3<AuthProvider, ThemeProvider, NotificationService>(
+      builder: (context, authProvider, themeProvider, notificationService, child) {
         return Scaffold(
           appBar: AppBar(
         title: const Text('Configuración'),
@@ -69,14 +73,25 @@ class ConfiguracionTab extends StatelessWidget {
             context,
             title: 'General',
             items: [
+              SwitchListTile(
+                secondary: const Icon(Icons.dark_mode_outlined),
+                title: const Text('Tema oscuro'),
+                subtitle: const Text('Alterna claro/oscuro y persiste la preferencia'),
+                value: themeProvider.mode == ThemeMode.dark,
+                onChanged: (isDark) {
+                  themeProvider.setTheme(isDark ? ThemeMode.dark : ThemeMode.light);
+                },
+              ),
               _buildListTile(
                 context,
                 icon: Icons.notifications_outlined,
                 title: 'Notificaciones',
-                subtitle: 'Configurar alertas y notificaciones',
-                onTap: () {
+                subtitle: 'Solicitar permisos locales',
+                onTap: () async {
+                  await notificationService.requestPermissions();
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Configuración de notificaciones')),
+                    const SnackBar(content: Text('Permisos de notificaciones solicitados')),
                   );
                 },
               ),
@@ -88,17 +103,6 @@ class ConfiguracionTab extends StatelessWidget {
                 onTap: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Seleccionar idioma')),
-                  );
-                },
-              ),
-              _buildListTile(
-                context,
-                icon: Icons.dark_mode_outlined,
-                title: 'Tema',
-                subtitle: 'Claro',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Cambiar tema')),
                   );
                 },
               ),
@@ -115,19 +119,31 @@ class ConfiguracionTab extends StatelessWidget {
                 title: 'Seguridad',
                 subtitle: 'Cambiar contraseña',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Configuración de seguridad')),
+                  showDialog<void>(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text('Cambio de contraseña'),
+                      content: const Text(
+                        'Por seguridad, solicita el cambio al correo ti@ddg.com.mx',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Aceptar'),
+                        ),
+                      ],
+                    ),
                   );
                 },
               ),
               _buildListTile(
                 context,
                 icon: Icons.privacy_tip_outlined,
-                title: 'Privacidad',
-                subtitle: 'Gestionar datos personales',
+                title: 'Aviso de Privacidad',
+                subtitle: 'Consulta el aviso de privacidad',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Configuración de privacidad')),
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AvisoPrivacidadScreen()),
                   );
                 },
               ),
@@ -141,11 +157,11 @@ class ConfiguracionTab extends StatelessWidget {
               _buildListTile(
                 context,
                 icon: Icons.help_outline,
-                title: 'Ayuda',
-                subtitle: 'Centro de ayuda y FAQs',
+                title: 'Centro de ayuda',
+                subtitle: 'Preguntas frecuentes y soporte',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Centro de ayuda')),
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const FaqsScreen()),
                   );
                 },
               ),
@@ -153,7 +169,7 @@ class ConfiguracionTab extends StatelessWidget {
                 context,
                 icon: Icons.info_outline,
                 title: 'Acerca de',
-                subtitle: 'Versión 1.0.0',
+                subtitle: 'Versión 21.0.0',
                 onTap: () {
                   showAboutDialog(
                     context: context,

@@ -4,6 +4,7 @@ import 'package:app_dal/features/equipos/presentation/detail/widgets/empty_state
 import 'package:app_dal/features/equipos/presentation/detail/widgets/error_view.dart';
 import 'package:app_dal/features/equipos/presentation/detail/screens/new_inspection_screen.dart';
 import 'package:app_dal/features/equipos/presentation/report/reporte_screen.dart';
+import 'package:app_dal/features/equipos/repositories/equipos_repository.dart';
 import 'package:app_dal/features/equipos/repositories/inspection_records_repository.dart';
 import 'package:flutter/material.dart';
 
@@ -23,10 +24,12 @@ class InspectionTab extends StatefulWidget {
 
 class _InspectionTabState extends State<InspectionTab>
     with AutomaticKeepAliveClientMixin {
+  final EquiposRepository _equiposRepository = EquiposRepository();
   final _repository = InspectionRecordsRepository();
   late Future<List<InspectionRecord>> _future;
   final ScrollController _scrollController = ScrollController();
   bool _showScrollToTop = false;
+  bool _hourometerModalOpen = false;
 
   @override
   void initState() {
@@ -76,6 +79,212 @@ class _InspectionTabState extends State<InspectionTab>
     await _future;
   }
 
+  Future<void> _startNewInspection() async {
+    if (_hourometerModalOpen) return;
+    final updated = await _showHourometerModal();
+    if (updated != true) return;
+    await _refreshInspections();
+    if (!mounted) return;
+
+    final created = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => NewInspectionScreen(
+          equipo: widget.equipo,
+        ),
+      ),
+    );
+
+    if (created == true && mounted) {
+      await _refreshInspections();
+    }
+  }
+
+  Future<bool?> _showHourometerModal() async {
+    _hourometerModalOpen = true;
+    final controller = TextEditingController(
+      text: widget.equipo.hourometer.toString(),
+    );
+    String? errorText;
+    bool saving = false;
+
+    try {
+      final result = await showModalBottomSheet<bool>(
+        context: context,
+        useRootNavigator: true,
+        isScrollControlled: true,
+        builder: (ctx) {
+          final bottom = MediaQuery.of(ctx).viewInsets.bottom;
+          return Padding(
+            padding: EdgeInsets.only(bottom: bottom),
+            child: StatefulBuilder(
+              builder: (ctx, setModalState) {
+                void safeSetModalState(VoidCallback fn) {
+                  if (!ctx.mounted) return;
+                  setModalState(fn);
+                }
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Actualizar horómetro',
+                            style: Theme.of(ctx)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w900),
+                          ),
+                          const Spacer(),
+                          Text(
+                            widget.equipo.economicNumber.isEmpty
+                                ? 'Equipo sin número'
+                                : 'Equipo ${widget.equipo.economicNumber}',
+                            style: Theme.of(ctx)
+                                .textTheme
+                                .labelLarge
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: controller,
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Horómetro',
+                          prefixIcon: const Icon(Icons.speed),
+                          border: const OutlineInputBorder(),
+                          errorText: errorText,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          TextButton(
+                            onPressed: saving
+                                ? null
+                                : () {
+                                    Navigator.of(ctx).pop(false);
+                                  },
+                            child: const Text('Cancelar'),
+                          ),
+                          const Spacer(),
+                          FilledButton.icon(
+                            onPressed: saving
+                                ? null
+                                : () async {
+                                    safeSetModalState(() {
+                                      errorText = null;
+                                    });
+                                    final raw = controller.text
+                                        .trim()
+                                        .replaceAll(',', '.');
+                                    final value = double.tryParse(raw);
+                                    if (value == null || value.isNaN) {
+                                        safeSetModalState(() {
+                                        errorText =
+                                            'Ingresa un valor numérico para el horómetro';
+                                      });
+                                      return;
+                                    }
+                                    if (value < 0) {
+                                        safeSetModalState(() {
+                                        errorText = 'El horómetro no puede ser negativo';
+                                      });
+                                      return;
+                                    }
+
+                                    safeSetModalState(() {
+                                      saving = true;
+                                    });
+
+                                    try {
+                                      final ok = await _equiposRepository
+                                          .updateHourometer(
+                                        equipmentId: widget.equipo.id,
+                                        hourometer: value,
+                                      );
+
+                                      if (!ok) {
+                                        if (ctx.mounted) {
+                                          ScaffoldMessenger.of(ctx).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'No se pudo actualizar el horómetro',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                        safeSetModalState(() {
+                                          saving = false;
+                                        });
+                                        return;
+                                      }
+
+                                      if (ctx.mounted) {
+                                        ScaffoldMessenger.of(ctx).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Horómetro actualizado'),
+                                          ),
+                                        );
+                                      }
+                                      if (ctx.mounted) {
+                                        Navigator.of(ctx).pop(true);
+                                      }
+                                    } catch (e) {
+                                      if (ctx.mounted) {
+                                        ScaffoldMessenger.of(ctx).showSnackBar(
+                                          SnackBar(content: Text(e.toString())),
+                                        );
+                                      }
+                                      safeSetModalState(() {
+                                        saving = false;
+                                      });
+                                    }
+                                  },
+                            icon: saving
+                                ? SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Theme.of(ctx).colorScheme.onPrimary,
+                                      ),
+                                    ),
+                                  )
+                                : const Icon(Icons.save_outlined),
+                            label: const Text('Guardar y continuar'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          );
+        },
+      );
+
+      return result;
+    } finally {
+      // Espera a que el sheet termine su animación de cierre antes de liberar el controller.
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      try {
+        controller.dispose();
+      } catch (_) {
+        // Ignora si ya fue liberado por el framework durante el cierre.
+      }
+      _hourometerModalOpen = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -109,18 +318,7 @@ class _InspectionTabState extends State<InspectionTab>
                     sliver: SliverToBoxAdapter(
                       child: _InspectionHeroCard(
                         equipoName: widget.equipo.economicNumber,
-                        onTap: () async {
-                          final created = await Navigator.of(context).push<bool>(
-                            MaterialPageRoute(
-                              builder: (_) => NewInspectionScreen(
-                                equipo: widget.equipo,
-                              ),
-                            ),
-                          );
-                          if (created == true && mounted) {
-                            await _refreshInspections();
-                          }
-                        },
+                        onTap: _startNewInspection,
                       ),
                     ),
                   ),

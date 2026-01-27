@@ -108,4 +108,32 @@ class EquiposRepository {
       throw Exception('Error de conexión');
     }
   }
+
+  Future<bool> updateHourometer({required int equipmentId, required double hourometer}) async {
+    try {
+      final response = await _dio.patch(
+        '${AppConstants.equipmentDetailEndpoint}/$equipmentId/hourometer',
+        data: {'hourometer': hourometer},
+      );
+
+      if (response.statusCode == 200 && response.data is bool) {
+        return response.data == true;
+      }
+
+      throw Exception('No se pudo actualizar el horómetro (código: ${response.statusCode})');
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      final data = e.response?.data;
+      debugPrint('Hourometer update error status=$status data=$data message=${e.message}');
+      final msg = (data is Map && data['message'] != null)
+          ? data['message'].toString()
+          : (status != null
+              ? 'No se pudo actualizar el horómetro (código: $status)'
+              : 'No se pudo actualizar el horómetro');
+      throw Exception(msg);
+    } catch (e) {
+      debugPrint('Hourometer update unexpected error: $e');
+      throw Exception('Error de conexión');
+    }
+  }
 }

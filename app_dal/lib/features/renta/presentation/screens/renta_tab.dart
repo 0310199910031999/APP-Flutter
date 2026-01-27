@@ -243,6 +243,7 @@ class _RentaTabState extends State<RentaTab>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final scheme = Theme.of(context).colorScheme;
     return DefaultTabController(
       length: 3,
       child: Scaffold(
@@ -252,11 +253,11 @@ class _RentaTabState extends State<RentaTab>
         body: Column(
           children: [
             Container(
-              color: Colors.white,
+              color: scheme.surfaceContainerHighest,
               child: TabBar(
-                indicatorColor: Theme.of(context).colorScheme.primary,
-                labelColor: Theme.of(context).colorScheme.primary,
-                unselectedLabelColor: Colors.grey.shade300,
+                indicatorColor: scheme.primary,
+                labelColor: scheme.primary,
+                unselectedLabelColor: scheme.onSurfaceVariant,
                 tabs: const [
                   Tab(text: 'Disponible'),
                   Tab(text: 'Próximamente'),
@@ -541,7 +542,7 @@ class _RequestTypeTile extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: scheme.surfaceVariant,
+          color: scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: scheme.outlineVariant),
         ),
@@ -778,7 +779,7 @@ class _ChipLabel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: scheme.surfaceVariant,
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(

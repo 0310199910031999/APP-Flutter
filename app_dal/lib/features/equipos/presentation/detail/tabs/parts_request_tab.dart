@@ -770,7 +770,7 @@ class _SearchField extends StatelessWidget {
                 icon: const Icon(Icons.close),
               ),
         filled: true,
-        fillColor: scheme.surfaceVariant.withValues(alpha: 0.5),
+        fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: scheme.outline.withValues(alpha: 0.4)),
@@ -872,7 +872,9 @@ class _CategoryPage extends StatelessWidget {
         final isSelected = c.id == selectedId;
         return ListTile(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          tileColor: isSelected ? scheme.primary.withValues(alpha: 0.12) : scheme.surfaceVariant.withValues(alpha: 0.4),
+            tileColor: isSelected
+              ? scheme.primary.withValues(alpha: 0.12)
+              : scheme.surfaceContainerHighest.withValues(alpha: 0.4),
           title: Text(
             c.description,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(

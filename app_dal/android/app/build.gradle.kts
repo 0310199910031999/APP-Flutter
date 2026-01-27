@@ -1,19 +1,20 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
 
 android {
-    signingConfigs {
-        create("release") {
-            storeFile = file("C:\\Users\\ddgti\\Documents\\DAL APP\\claves")
-            storePassword = "daldealer_32"
-            keyPassword = "daldealer_32"
-            keyAlias = "key0"
-        }
-    }
+    
     namespace = "com.dal.app"
     compileSdk = 36
     ndkVersion = "28.2.13676358"
@@ -21,11 +22,20 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            storeFile = file(keystoreProperties["storeFile"] as String)
+            storePassword = keystoreProperties["storePassword"] as String
+        }
+    }
     defaultConfig {
         // Application ID único para Android
         applicationId = "com.cs.daldealergroup"
@@ -38,15 +48,26 @@ android {
         versionName = flutter.versionName
         signingConfig = signingConfigs.getByName("release")
     }
+    
 
     buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+        getByName("release") {
+            // 3. Asignar la configuración de firma al build release
+            signingConfig = signingConfigs.getByName("release")
+
+            isMinifyEnabled = true // Ojo: en KTS es 'isMinifyEnabled', no 'minifyEnabled'
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
     buildToolsVersion = "35.0.0"
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.2")
 }
 
 flutter {

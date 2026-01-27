@@ -362,7 +362,7 @@ class _AnswerButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
           color:
-              isSelected ? color.withValues(alpha: 0.15) : scheme.surfaceVariant,
+              isSelected ? color.withValues(alpha: 0.15) : scheme.surfaceContainerHighest,
           border: Border.all(
             color: isSelected ? color : scheme.outlineVariant,
             width: 1.4,

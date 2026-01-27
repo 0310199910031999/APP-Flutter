@@ -164,7 +164,7 @@ class _Header extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: primary.withOpacity(0.25),
+            color: primary.withValues(alpha: 0.25),
             blurRadius: 18,
             offset: const Offset(0, 10),
           ),

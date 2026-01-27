@@ -225,7 +225,6 @@ class _ServiceRequestTabState extends State<ServiceRequestTab>
 
     if (_cachedItems.isEmpty) return;
 
-    final rootContext = context;
     final currentUser = context.read<AuthProvider>().state.user;
     String localType = _resolveServiceType(_cachedItems);
     String searchTerm = '';
@@ -491,7 +490,7 @@ class _SearchField extends StatelessWidget {
                 icon: const Icon(Icons.close),
               ),
         filled: true,
-        fillColor: scheme.surfaceVariant.withValues(alpha: 0.5),
+        fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: scheme.outline.withValues(alpha: 0.4)),
@@ -593,9 +592,9 @@ class _ServiceTypePage extends StatelessWidget {
         final isSelected = item.type == selectedType;
         return ListTile(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          tileColor: isSelected
+            tileColor: isSelected
               ? scheme.primary.withValues(alpha: 0.12)
-              : scheme.surfaceVariant.withValues(alpha: 0.4),
+              : scheme.surfaceContainerHighest.withValues(alpha: 0.4),
           title: Text(
             item.type,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(

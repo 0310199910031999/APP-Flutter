@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 class FoimQuestion {
   const FoimQuestion({
     required this.id,
